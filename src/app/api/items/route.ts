@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getAllItems, addItem, updateItemInfo } from '@/lib/store';
 import { parseInput, extractTitle } from '@/lib/taobao-parser';
-import { FetchClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 // 获取所有商品
 export async function GET(request: NextRequest) {
@@ -17,8 +16,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const items = await getAllItems();
-  return NextResponse.json({ items });
+  try {
+    const items = await getAllItems();
+    return NextResponse.json({ items });
+  } catch (error: any) {
+    console.error('获取商品列表错误:', error);
+    return NextResponse.json(
+      { error: '获取失败: ' + (error.message || '未知错误') },
+      { status: 500 }
+    );
+  }
 }
 
 // 添加新商品
@@ -62,11 +69,12 @@ export async function POST(request: NextRequest) {
       rawInput: input.trim(),
     });
 
-    // 异步尝试用 fetch-url 提取标题和图片（不阻塞响应）
+    // 异步尝试提取标题和图片（不阻塞响应）
     if (parsed.taobaoUrl && parsed.sourceType !== 'manual' && !manualTitle) {
-      // 使用 setTimeout 在后台异步获取，不阻塞当前请求
       setTimeout(async () => {
         try {
+          // 动态导入！避免 Netlify 上模块不存在导致崩溃
+          const { FetchClient, Config } = await import('coze-coding-dev-sdk');
           const config = new Config();
           const client = new FetchClient(config);
           const response = await client.fetch(parsed.taobaoUrl);
@@ -80,11 +88,11 @@ export async function POST(request: NextRequest) {
 
           if (response.status_code === 0 && response.content) {
             const firstImage = response.content.find(
-              (c) => c.type === 'image' && c.image?.display_url
+              (c: any) => c.type === 'image' && c.image?.display_url
             );
-            if (firstImage && firstImage.image?.thumbnail_display_url) {
+            if (firstImage?.image?.thumbnail_display_url) {
               fetchedImageUrl = firstImage.image.thumbnail_display_url;
-            } else if (firstImage && firstImage.image?.display_url) {
+            } else if (firstImage?.image?.display_url) {
               fetchedImageUrl = firstImage.image.display_url;
             }
           }
@@ -95,17 +103,18 @@ export async function POST(request: NextRequest) {
               imageUrl: fetchedImageUrl || undefined,
             });
           }
-        } catch {
-          // 后台提取失败不影响
+        } catch (err) {
+          console.error('后台提取失败:', err);
         }
       }, 0);
     }
 
     return NextResponse.json({ success: true, item }, { status: 201 });
-  } catch {
+  } catch (error: any) {
+    console.error('添加商品错误:', error);
     return NextResponse.json(
-      { error: '添加商品失败，请检查输入' },
-      { status: 400 }
+      { error: '添加商品失败: ' + (error.message || '未知错误') },
+      { status: 500 }
     );
   }
 }
