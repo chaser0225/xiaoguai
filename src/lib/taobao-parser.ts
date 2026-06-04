@@ -97,21 +97,48 @@ export function parseInput(input: string): ParsedTaobaoItem {
 }
 
 /**
- * 从输入中提取展示标题
+ * 从粘贴的混合文本中提取中文商品名称
+ * 支持格式：【商品名】、淘口令+商品名、链接前后带商品名
  */
-export function extractTitle(input: string, parsed: ParsedTaobaoItem): string {
-  // 如果是淘口令，尝试从周围文本提取描述
-  if (parsed.sourceType === 'taobao_code') {
-    const codeMatch = input.match(TAOBAO_CODE_REGEX);
-    if (codeMatch) {
-      const code = codeMatch[0];
-      const surrounding = input.replace(code, '').trim();
-      if (surrounding && surrounding.length > 2) {
-        return surrounding.length > 80
-          ? surrounding.substring(0, 80) + '...'
-          : surrounding;
-      }
-    }
+export function extractTitle(input: string, parsed?: any): string {
+  if (!input) return '未命名商品';
+
+  // 1. 优先匹配【】或[]中的内容（最常见）
+  const bracketMatch = input.match(/[【\[](.+?)[】\]]/);
+  if (bracketMatch) {
+    const title = bracketMatch[1].trim();
+    if (title.length >= 2) return title;
   }
-  return parsed.title;
+
+  // 2. 清理干扰内容
+  let cleaned = input
+    .replace(/https?:\/\/[^\s]+/g, '')     // 移除 URL
+    .replace(/www\.[^\s]+/g, '')            // 移除 www 链接
+    .replace(/[￥$₳₤£¢€¥]/g, ' ')          // 移除淘口令货币符号
+    .replace(/复制这条信息|打开淘宝|打开天猫|即可看到|点击链接|直接购买/g, '')
+    .replace(/[a-zA-Z0-9]{10,}/g, ' ')    // 移除长串数字字母（通常是淘口令密文）
+    .replace(/[\r\n\t]/g, ' ')              // 换行转空格
+    .trim();
+
+  // 3. 提取连续的中文字符（至少2个字）
+  // 匹配中文、中文+数字/字母混合（如" iPhone 16 Pro Max 手机壳"）
+  const chineseMatches = cleaned.match(/[\u4e00-\u9fa5][\u4e00-\u9fa5\s\w]*[\u4e00-\u9fa5]/g);
+  
+  if (chineseMatches && chineseMatches.length > 0) {
+    // 取最长的一段作为商品名（通常商品名最长）
+    const longest = chineseMatches.reduce((a, b) => 
+      a.replace(/\s/g, '').length > b.replace(/\s/g, '').length ? a : b
+    );
+    const title = longest.trim();
+    if (title.length >= 2) return title;
+  }
+
+  // 4. 兜底：如果 parsed 里有其他信息
+  if (parsed?.taobaoUrl) {
+    // 从 URL 里尝试提取 id 作为临时名称
+    const idMatch = parsed.taobaoUrl.match(/[?&]id=(\d+)/);
+    if (idMatch) return `商品 ${idMatch[1]}`;
+  }
+
+  return '未命名商品';
 }
