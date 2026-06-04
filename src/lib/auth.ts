@@ -1,30 +1,33 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import jwt from 'jsonwebtoken';
 
-// 使用全局变量存储 session（token 存内存，重启会失效，但先解决密码问题）
-const globalForSessions = globalThis as unknown as {
-  __shoppingSessions: Set<string> | undefined;
-};
+const JWT_SECRET = process.env.JWT_SECRET || 'xiaoguai-default-secret-change-me';
 
-if (!globalForSessions.__shoppingSessions) {
-  globalForSessions.__shoppingSessions = new Set<string>();
-}
-
-const sessions = globalForSessions.__shoppingSessions;
-
-// 生成 session token
+// 生成 JWT token（任何实例都能验证，不依赖内存）
 export function generateToken(): string {
-  const token =
-    Date.now().toString(36) +
-    Math.random().toString(36).substring(2) +
-    Math.random().toString(36).substring(2);
-  sessions.add(token);
+  const token = jwt.sign(
+    { role: 'admin', createdAt: Date.now() },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
   return token;
 }
 
-// 从数据库读取密码
+// 验证 JWT token（无状态，任何服务器实例都能验证）
+export function verifyToken(token: string): boolean {
+  try {
+    jwt.verify(token, JWT_SECRET);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// 验证密码（从数据库读取，不再用内存变量）
+import { getSupabaseClient } from '@/storage/database/supabase-client';
+
 async function getPasswordFromDB(): Promise<string> {
   try {
-    const client = getSupabaseClient(); // 使用 service_role key
+    const client = getSupabaseClient();
     const { data, error } = await client
       .from('app_settings')
       .select('value')
@@ -42,20 +45,18 @@ async function getPasswordFromDB(): Promise<string> {
   }
 }
 
-// 验证密码（改为异步，从数据库读取）
 export async function verifyPassword(password: string): Promise<boolean> {
   const currentPassword = await getPasswordFromDB();
   return password === currentPassword;
 }
 
-// 修改密码（改为异步，写入数据库）
 export async function changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
   const currentPassword = await getPasswordFromDB();
   if (oldPassword !== currentPassword) return false;
   if (!newPassword || newPassword.length < 4) return false;
 
   try {
-    const client = getSupabaseClient(); // 使用 service_role key
+    const client = getSupabaseClient();
     const { error } = await client
       .from('app_settings')
       .update({ value: newPassword, updated_at: new Date().toISOString() })
@@ -70,14 +71,4 @@ export async function changePassword(oldPassword: string, newPassword: string): 
     console.error('更新密码异常:', err);
     return false;
   }
-}
-
-// 验证 token
-export function verifyToken(token: string): boolean {
-  return sessions.has(token);
-}
-
-// 销毁 token
-export function destroyToken(token: string): void {
-  sessions.delete(token);
 }
