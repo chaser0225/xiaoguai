@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!verifyPassword(password)) {
+    if (!(await verifyPassword(password))) {
       return NextResponse.json(
         { error: '密码错误' },
         { status: 401 }

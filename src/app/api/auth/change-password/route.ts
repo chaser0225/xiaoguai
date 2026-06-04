@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const success = changePassword(oldPassword, newPassword);
+    const success = await changePassword(oldPassword, newPassword); // 加 await
     if (!success) {
       return NextResponse.json(
         { error: '旧密码错误' },

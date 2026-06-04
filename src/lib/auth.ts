@@ -1,9 +1,6 @@
-// 认证工具
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 当前密码（可动态修改），初始值来自环境变量
-let currentPassword = process.env.ADMIN_PASSWORD || 'taobao2024';
-
-// 使用全局变量存储 session，避免 Next.js dev 模式下模块热重载导致状态丢失
+// 使用全局变量存储 session（token 存内存，重启会失效，但先解决密码问题）
 const globalForSessions = globalThis as unknown as {
   __shoppingSessions: Set<string> | undefined;
 };
@@ -24,17 +21,55 @@ export function generateToken(): string {
   return token;
 }
 
-// 验证密码
-export function verifyPassword(password: string): boolean {
+// 从数据库读取密码
+async function getPasswordFromDB(): Promise<string> {
+  try {
+    const client = getSupabaseClient(); // 使用 service_role key
+    const { data, error } = await client
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'admin_password')
+      .single();
+
+    if (error || !data) {
+      console.error('读取密码失败:', error);
+      return process.env.ADMIN_PASSWORD || 'taobao2024';
+    }
+    return data.value;
+  } catch (err) {
+    console.error('读取密码异常:', err);
+    return process.env.ADMIN_PASSWORD || 'taobao2024';
+  }
+}
+
+// 验证密码（改为异步，从数据库读取）
+export async function verifyPassword(password: string): Promise<boolean> {
+  const currentPassword = await getPasswordFromDB();
   return password === currentPassword;
 }
 
-// 修改密码
-export function changePassword(oldPassword: string, newPassword: string): boolean {
+// 修改密码（改为异步，写入数据库）
+export async function changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+  const currentPassword = await getPasswordFromDB();
   if (oldPassword !== currentPassword) return false;
   if (!newPassword || newPassword.length < 4) return false;
-  currentPassword = newPassword;
-  return true;
+
+  try {
+    const client = getSupabaseClient(); // 使用 service_role key
+    const { error } = await client
+      .from('app_settings')
+      .update({ value: newPassword, updated_at: new Date().toISOString() })
+      .eq('key', 'admin_password');
+
+    if (error) {
+      console.error('更新密码失败:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('更新密码异常:', err);
+    return false;
+  }
 }
 
 // 验证 token
