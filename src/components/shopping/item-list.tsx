@@ -12,7 +12,6 @@ import {
   Clock,
   Tag,
   Copy,
-  Image as ImageIcon,
 } from 'lucide-react';
 
 interface ItemCardProps {
@@ -64,18 +63,13 @@ function formatTime(timestamp: number): string {
 
 /**
  * 生成淘宝 APP Deep Link
- * - 手机端会直接唤起淘宝APP打开商品页
- * - PC 端等不支持的场景会 fallback 到浏览器打开
  */
 function getTaobaoAppUrl(item: ShoppingItem): string {
-  // 从 URL 中提取商品 ID
   const itemIdMatch = item.taobaoUrl.match(/[?&]id=(\d+)/);
   if (itemIdMatch) {
     const itemId = itemIdMatch[1];
-    // 淘宝 APP URL Scheme
     return `taobao://item.taobao.com/item.htm?id=${itemId}`;
   }
-  // 如果是短链接，直接用 taobao:// scheme 替换
   return item.taobaoUrl.replace(/^https?/, 'taobao');
 }
 
@@ -86,7 +80,6 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
     try {
       await navigator.clipboard.writeText(item.rawInput);
     } catch {
-      // fallback: 使用 execCommand
       const textarea = document.createElement('textarea');
       textarea.value = item.rawInput;
       document.body.appendChild(textarea);
@@ -97,24 +90,18 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
   };
 
   const handleOpenTaobao = () => {
-    // 尝试使用淘宝 APP Deep Link 唤起
     const appUrl = getTaobaoAppUrl(item);
     const webUrl = item.taobaoUrl;
-
-    // 检测是否为移动端
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (isMobile) {
-      // 移动端：先尝试唤起 APP，2秒后 fallback 到网页
       window.location.href = appUrl;
       setTimeout(() => {
-        // 如果 APP 没有被唤起（页面还在），就打开网页版
         if (!document.hidden) {
           window.open(webUrl, '_blank');
         }
       }, 2000);
     } else {
-      // PC 端：直接打开网页
       window.open(webUrl, '_blank');
     }
   };
@@ -128,29 +115,6 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
   return (
     <Card className="group border border-gray-100 bg-white hover:shadow-lg hover:shadow-orange-100/30 hover:-translate-y-0.5 transition-all duration-200">
       <CardContent className="p-4">
-        {/* 商品图片 */}
-        {item.imageUrl && (
-          <div className="mb-3 rounded-xl overflow-hidden bg-gray-50 aspect-square max-h-48 flex items-center justify-center">
-            <img
-              src={item.imageUrl}
-              alt={item.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                // 图片加载失败时隐藏
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        )}
-
-        {/* 无图片占位 */}
-        {!item.imageUrl && (
-          <div className="mb-3 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 aspect-[4/3] flex items-center justify-center">
-            <ImageIcon className="w-8 h-8 text-orange-200" />
-          </div>
-        )}
-
         {/* 顶部：状态标签 + 来源 */}
         <div className="flex items-center justify-between mb-2">
           <Badge
