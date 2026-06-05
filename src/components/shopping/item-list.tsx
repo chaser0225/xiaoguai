@@ -22,12 +22,12 @@ interface ItemCardProps {
 
 const statusConfig = {
   pending: {
-    label: '待购买',
+    label: '待购',
     color: 'bg-amber-100 text-amber-700 border-amber-200',
     dotColor: 'bg-amber-500',
   },
   purchased: {
-    label: '已购买',
+    label: '已购',
     color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     dotColor: 'bg-emerald-500',
   },
@@ -39,31 +39,30 @@ const statusConfig = {
 };
 
 const sourceTypeLabels = {
-  taobao_link: '淘宝链接',
-  tmall_link: '天猫链接',
-  taobao_code: '淘口令',
-  manual: '手动输入',
+  taobao_link: '淘宝',
+  tmall_link: '天猫',
+  taobao_code: '口令',
+  manual: '手动',
 };
 
-function formatTime(timestamp: number): string {
+function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const isSameYear = date.getFullYear() === now.getFullYear();
 
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
-
+  if (isSameYear) {
+    return date.toLocaleDateString('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+    });
+  }
   return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
 }
 
-/**
- * 生成淘宝 APP Deep Link
- */
 function getTaobaoAppUrl(item: ShoppingItem): string {
   const itemIdMatch = item.taobaoUrl.match(/[?&]id=(\d+)/);
   if (itemIdMatch) {
@@ -107,58 +106,56 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
   };
 
   const handleDelete = () => {
-    if (window.confirm('确定要删除这个商品吗？')) {
+    if (window.confirm('确定删除？')) {
       onDelete(item.id);
     }
   };
 
   return (
-    <Card className="group border border-gray-100 bg-white hover:shadow-lg hover:shadow-orange-100/30 hover:-translate-y-0.5 transition-all duration-200">
-      <CardContent className="p-4">
-        {/* 顶部：状态标签 + 来源 */}
-        <div className="flex items-center justify-between mb-2">
-          <Badge
-            variant="outline"
-            className={`${status.color} text-xs font-medium`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${status.dotColor} mr-1.5`}
-            />
-            {status.label}
-          </Badge>
-          <span className="text-xs text-gray-400">
-            {sourceTypeLabels[item.sourceType]}
-          </span>
+    <Card className="group border border-gray-100 bg-white hover:shadow-md transition-all duration-200">
+      <CardContent className="p-3">
+        {/* 第一行：状态 + 来源 + 日期 */}
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Badge
+              variant="outline"
+              className={`${status.color} text-[10px] px-1.5 py-0 h-5 font-medium`}
+            >
+              <span className={`w-1 h-1 rounded-full ${status.dotColor} mr-1`} />
+              {status.label}
+            </Badge>
+            <span className="text-[10px] text-gray-400">
+              {sourceTypeLabels[item.sourceType]}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <Clock className="w-3 h-3" />
+            {formatDate(item.addedAt)}
+          </div>
         </div>
 
         {/* 商品标题 */}
-        <h4 className="font-semibold text-gray-800 text-base mb-2 line-clamp-2 leading-snug">
+        <h4 className="font-medium text-gray-800 text-sm mb-1.5 line-clamp-2 leading-snug">
           {item.title}
         </h4>
 
         {/* 价格 */}
         {item.price && (
-          <p className="text-lg font-bold text-orange-600 mb-2">
+          <p className="text-sm font-bold text-orange-600 mb-1.5">
             {item.price.startsWith('¥') ? item.price : `¥${item.price}`}
           </p>
         )}
 
-        {/* 时间 */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
-          <Clock className="w-3 h-3" />
-          {formatTime(item.addedAt)}
-        </div>
-
-        {/* 操作按钮 */}
-        <div className="flex items-center gap-2">
+        {/* 操作按钮 - 紧凑排列 */}
+        <div className="flex items-center gap-1.5">
           {item.status === 'pending' && (
             <Button
               size="sm"
               onClick={handleOpenTaobao}
-              className="flex-1 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-sm"
+              className="flex-1 h-7 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs shadow-sm px-2"
             >
-              <ExternalLink className="w-4 h-4 mr-1.5" />
-              去购买
+              <ExternalLink className="w-3 h-3 mr-1" />
+              购买
             </Button>
           )}
 
@@ -167,10 +164,10 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
               size="sm"
               variant="outline"
               onClick={handleOpenTaobao}
-              className="flex-1 h-10 rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50"
+              className="flex-1 h-7 rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 text-xs px-2"
             >
-              <ExternalLink className="w-4 h-4 mr-1.5" />
-              再次购买
+              <ExternalLink className="w-3 h-3 mr-1" />
+              再买
             </Button>
           )}
 
@@ -179,10 +176,10 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
               size="sm"
               variant="outline"
               onClick={handleCopyCode}
-              className="h-10 rounded-xl border-gray-200 hover:border-orange-300 px-3"
-              title="复制淘口令"
+              className="h-7 w-7 rounded-lg border-gray-200 hover:border-orange-300 p-0"
+              title="复制口令"
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="w-3 h-3" />
             </Button>
           )}
 
@@ -191,10 +188,10 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
               size="sm"
               variant="outline"
               onClick={() => onUpdateStatus(item.id, 'purchased')}
-              className="h-10 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 px-3"
-              title="标记为已购买"
+              className="h-7 w-7 rounded-lg border-emerald-200 text-emerald-600 hover:bg-emerald-50 p-0"
+              title="标记已购"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-3 h-3" />
             </Button>
           )}
 
@@ -203,10 +200,10 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
               size="sm"
               variant="outline"
               onClick={() => onUpdateStatus(item.id, 'pending')}
-              className="h-10 rounded-xl border-amber-200 text-amber-600 hover:bg-amber-50 px-3"
+              className="h-7 w-7 rounded-lg border-amber-200 text-amber-600 hover:bg-amber-50 p-0"
               title="重新购买"
             >
-              <Tag className="w-4 h-4" />
+              <Tag className="w-3 h-3" />
             </Button>
           )}
 
@@ -214,10 +211,10 @@ export function ItemCard({ item, onUpdateStatus, onDelete }: ItemCardProps) {
             size="sm"
             variant="outline"
             onClick={handleDelete}
-            className="h-10 rounded-xl border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 px-3"
+            className="h-7 w-7 rounded-lg border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 p-0"
             title="删除"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3 h-3" />
           </Button>
         </div>
       </CardContent>
@@ -245,11 +242,11 @@ export function ItemList({
 
   if (filteredItems.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center">
-          <ShoppingBag className="w-10 h-10 text-orange-300" />
+      <div className="text-center py-12">
+        <div className="mx-auto mb-3 w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center">
+          <ShoppingBag className="w-8 h-8 text-orange-300" />
         </div>
-        <p className="text-gray-400 text-base">
+        <p className="text-gray-400 text-sm">
           {filter === 'all'
             ? '清单空空如也，快来添加第一件商品吧'
             : filter === 'pending'
@@ -261,7 +258,7 @@ export function ItemList({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {filteredItems.map((item) => (
         <ItemCard
           key={item.id}
