@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
 
     // 同时设置 cookie 方便前端使用
     response.cookies.set('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7天
-    });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 1800,  // ← 30 分钟，原来是 60 * 60 * 24 * 7 = 7天
+});
 
     return response;
   } catch {

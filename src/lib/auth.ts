@@ -2,17 +2,17 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'xiaoguai-default-secret-change-me';
 
-// 生成 JWT token（任何实例都能验证，不依赖内存）
+// 生成 JWT token（30 分钟有效）
 export function generateToken(): string {
   const token = jwt.sign(
     { role: 'admin', createdAt: Date.now() },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30m' }  // ← 改成 30 分钟
   );
   return token;
 }
 
-// 验证 JWT token（无状态，任何服务器实例都能验证）
+// 验证 JWT token
 export function verifyToken(token: string): boolean {
   try {
     jwt.verify(token, JWT_SECRET);

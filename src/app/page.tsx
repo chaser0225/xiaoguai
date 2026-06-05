@@ -24,22 +24,26 @@ export default function HomePage() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
 
-  // 检查已有登录状态
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch('/api/auth/verify');
-        if (res.ok) {
-          setToken('cookie');
-        }
-      } catch {
-        // 未登录
-      } finally {
-        setLoading(false);
+
+// 检查 token 是否过期的定时器
+useEffect(() => {
+  if (!token) return;
+  
+  const checkInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/auth/verify');
+      if (!res.ok) {
+        // token 过期或无效，自动退出
+        setToken(null);
+        setItems([]);
       }
-    };
-    checkAuth();
-  }, []);
+    } catch {
+      // 网络错误，不处理
+    }
+  }, 30000); // 每 30 秒检查一次
+
+  return () => clearInterval(checkInterval);
+}, [token]);
 
   // 获取商品列表
   const fetchItems = useCallback(async () => {
